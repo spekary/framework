@@ -25,7 +25,7 @@ class Installer {
 
 	public static function postPackageUpdate(PackageEvent $event)
 	{
-		$installedPackage = $event->getOperation()->getPackage();
+		$installedPackage = $event->getOperation()->getInitialPackage();
 		$strPackageName = $installedPackage->getName();
 		echo 'Found ' . $strPackageName . "/n";
 		self::ComposerPluginInstall($strPackageName);
@@ -48,7 +48,9 @@ class Installer {
 		$strPluginDir = dirname(__FILE__).'/../../plugin/' . $strPackageName . '/install';
 		$strDestDir = __INCLUDES__ . '/plugins';
 
-		self::copy_dir($strPluginDir, $strDestDir);
+		if (file_exists($strPluginDir)) {
+			self::copy_dir($strPluginDir, $strDestDir);
+		}
 	}
 
 	protected static function copy_dir($src,$dst) {
