@@ -18,5 +18,10 @@
 	},
 	"require-dev": {
 		"lastcraft/simpletest": "dev-master"
-	}
+	},
+    "autoload": {
+      "psr-4": {
+        "QCubed\\Devtools\\": "includes/_devtools/"
+      }
+    }
 }
