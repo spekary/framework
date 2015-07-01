@@ -11,7 +11,7 @@ use Composer\Installer\PackageEvent;
 
 
 $__CONFIG_ONLY__ = true;
-require_once(dirname(__FILE__) . '/../qcubed.inc.php');	// get the configuration options so we can know where to put the plugin files
+require_once(dirname(__FILE__) . '/../../qcubed.inc.php');	// get the configuration options so we can know where to put the plugin files
 
 class Installer {
 
