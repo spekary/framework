@@ -93,7 +93,7 @@ class Installer {
 		$strInstallDir = dirname(__FILE__).'/../../../../../';
 
 		foreach ($extra['writePermission'] as $strDir) {
-			chmod ($strInstallDir . $strDir, '0777');
+			chmod ($strInstallDir . $strDir, 0777);
 		}
 	}
 
