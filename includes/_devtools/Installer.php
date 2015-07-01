@@ -11,32 +11,53 @@ use Composer\Installer\PackageEvent;
 
 
 $__CONFIG_ONLY__ = true;
-require_once(dirname(__FILE__) . '/../../qcubed.inc.php');	// get the configuration options so we can know where to put the plugin files
 
 class Installer {
+
+	protected static function startsWith($haystack, $needle) {
+		// search backwards starting from haystack length characters from the end
+		return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== FALSE;
+	}
+
 
 	public static function postPackageInstall(PackageEvent $event)
 	{
 		$installedPackage = $event->getOperation()->getPackage();
 		$strPackageName = $installedPackage->getName();
-		echo 'Found ' . $strPackageName . "/n";
-		self::ComposerPluginInstall($strPackageName);
+
+		if (self::startsWith($strPackageName, 'qcubed/plugin')) {
+			echo 'Copying ' . $strPackageName . " files.\n";
+			self::ComposerPluginInstall($strPackageName);
+		}
+		elseif (self::startsWith($strPackageName, 'qcubed/framework')) {
+			// First time installation of framework
+			echo 'Copying ' . $strPackageName . " files.\n";
+			self::ComposerFrameworkInstall($installedPackage->getExtra());
+		}
 	}
 
 	public static function postPackageUpdate(PackageEvent $event)
 	{
 		$installedPackage = $event->getOperation()->getInitialPackage();
 		$strPackageName = $installedPackage->getName();
-		echo 'Found ' . $strPackageName . "/n";
-		self::ComposerPluginInstall($strPackageName);
+		if (self::startsWith($strPackageName, 'qcubed/plugin')) {
+			echo 'Copying ' . $strPackageName . " files.\n";
+			self::ComposerPluginInstall($strPackageName);
+		}
+		elseif (self::startsWith($strPackageName, 'qcubed/framework')) {
+			// updating the framework
+			self::ComposerFrameworkUpdate();
+		}
 	}
 
 	public static function postPackageUninstall(PackageEvent $event)
 	{
-		$installedPackage = $event->getOperation()->getPackage();
+		$installedPackage = $event->getOperation()->getInitialPackage();
 		$strPackageName = $installedPackage->getName();
-		echo 'Found ' . $strPackageName . "/n";
-		self::ComposerPluginUninstall($strPackageName);
+		if (self::startsWith($strPackageName, 'qcubed/plugin')) {
+			echo 'Removing ' . $strPackageName . "\n";
+			self::ComposerPluginUninstall($strPackageName);
+		}
 	}
 
 	/**
@@ -44,14 +65,49 @@ class Installer {
 	 * @param $strPackageName
 	 */
 	public static function ComposerPluginInstall ($strPackageName) {
+		require_once(dirname(__FILE__) . '/../../qcubed.inc.php');	// get the configuration options so we can know where to put the plugin files
+
 		// recursively copy the contents of the install directory, providing each file is not there.
-		$strPluginDir = dirname(__FILE__).'/../../plugin/' . $strPackageName . '/install';
+		$strPluginDir = dirname(__FILE__).'/../../../plugin/' . $strPackageName . '/install';
 		$strDestDir = __INCLUDES__ . '/plugins';
 
 		if (file_exists($strPluginDir)) {
 			self::copy_dir($strPluginDir, $strDestDir);
 		}
 	}
+
+	/**
+	 * First time installation of framework. For first-time installation, we create the project directory and modify
+	 * the configuration file.
+	 *
+	 * @param $strPackageName
+	 */
+	public static function ComposerFrameworkInstall ($extra) {
+		// recursively copy the contents of the install directory, providing each file is not there.
+		$strInstallDir = dirname(__FILE__).'/../../install/project';
+		$strDestDir = dirname(__FILE__).'/../../../../../project';
+
+		self::copy_dir($strInstallDir, $strDestDir);
+
+		// Make sure particular directories are writable by the web server. These are listed in the extra section of the composer.json file.
+		$strInstallDir = dirname(__FILE__).'/../../../../../';
+
+		foreach ($extra['writePermission'] as $strDir) {
+			chmod ($strInstallDir . $strDir, '0777');
+		}
+	}
+
+	public static function ComposerFrameworkUpdate () {
+		require_once(dirname(__FILE__) . '/../../qcubed.inc.php');	// get the configuration options so we can know where to put the plugin files
+
+		// recursively copy the contents of the install directory, providing each file is not there.
+		$strInstallDir = dirname(__FILE__).'/../../install/project';
+		$strDestDir = __PROJECT__;
+
+		// copy_dir will not overwrite files, but will add any new stub files
+		self::copy_dir($strInstallDir, $strDestDir);
+	}
+
 
 	protected static function copy_dir($src,$dst) {
 		$dir = opendir($src);
@@ -76,7 +132,7 @@ class Installer {
 
 	public static function ComposerPluginUninstall ($strPackageName) {
 		// recursively delete the contents of the install directory, providing each file is there.
-		$strPluginDir = dirname(__FILE__).'/../../plugin/' . $strPackageName . '/install';
+		$strPluginDir = dirname(__FILE__).'/../../../plugin/' . $strPackageName . '/install';
 		$strDestDir = __INCLUDES__ . '/plugins';
 
 		self::remove_matching_dir($strPluginDir, $strDestDir);
