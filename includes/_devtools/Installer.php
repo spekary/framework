@@ -29,6 +29,10 @@ class Installer {
 			echo 'Copying ' . $strPackageName . " files.\n";
 			self::ComposerPluginInstall($strPackageName);
 		}
+		elseif (self::startsWith($strPackageName, 'qcubed/framework')) {
+			// updating the framework
+			self::ComposerFrameworkInstall($installedPackage->getExtra());
+		}
 	}
 
 	public static function postPackageUpdate(PackageEvent $event)
@@ -54,16 +58,6 @@ class Installer {
 			self::ComposerPluginUninstall($strPackageName);
 		}
 	}
-
-	public static function postRootInstall(PackageEvent $event)
-	{
-		$installedPackage = $event->getOperation()->getPackage();
-		$strPackageName = $installedPackage->getName();
-		if (self::startsWith($strPackageName, 'qcubed')) {	// double check that we are installing a qcubed project
-			self::ComposerFrameworkInstall($installedPackage->getExtra());
-		}
-	}
-
 
 	/**
 	 * Move files out of the vendor directory and into the project directory that are in the plugin's install directory.
