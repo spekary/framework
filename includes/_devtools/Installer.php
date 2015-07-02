@@ -61,13 +61,6 @@ class Installer {
 		$strPackageName = $installedPackage->getName();
 		if (self::startsWith($strPackageName, 'qcubed')) {	// double check that we are installing a qcubed project
 			self::ComposerFrameworkInstall($installedPackage->getExtra());
-
-			// add the scripts above to manage plugin installations and framework updates
-			$installedPackage->setScripts([
-				"post-package-install"=>["QCubed\\Devtools\\Installer::postPackageInstall"],
-				"post-package-update"=>["QCubed\\Devtools\\Installer::postPackageUpdate"],
-    			"post-package-uninstall"=>["QCubed\\Devtools\\Installer::postPackageUninstall"]
-			]);
 		}
 	}
 
