@@ -835,7 +835,8 @@
 		}
 
 		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem($this->Sql($objBuilder));
+			$strSql = $this->Sql($objBuilder);
+			$objBuilder->AddWhereItem($strSql);
 		}
 
 	}
