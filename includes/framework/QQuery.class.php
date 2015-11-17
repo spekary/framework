@@ -789,7 +789,7 @@
 
 	abstract class QQCondition extends QBaseClass {
 		protected $strOperator;
-		abstract public function UpdateQueryBuilder(QQueryBuilder $objBuilder);
+		abstract public function Sql(QQueryBuilder $objBuilder);
 		public function __toString() {
 			return 'QQCondition Object';
 		}
@@ -813,9 +813,12 @@
 			$this->blnProcessed = true;
 
 			try {
+				/*
 				$objConditionBuilder = new QPartialQueryBuilder($objBuilder);
 				$this->UpdateQueryBuilder($objConditionBuilder);
 				return $objConditionBuilder->GetWhereStatement();
+				*/
+				return $this->Sql($objBuilder);
 			} catch (QCallerException $objExc) {
 				$objExc->IncrementOffset();
 				$objExc->IncrementOffset();
@@ -830,6 +833,11 @@
 		public function EqualTables($strTableName) {
 			return true;
 		}
+
+		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+			$objBuilder->AddWhereItem($this->Sql($objBuilder));
+		}
+
 	}
 	class QQConditionAll extends QQCondition {
 		/**
@@ -844,8 +852,8 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem('1=1');
+		public function Sql(QQueryBuilder $objBuilder) {
+			return '1=1';
 		}
 	}
 	class QQConditionNone extends QQCondition {
@@ -857,8 +865,8 @@
 			if (count($mixParameterArray))
 				throw new QCallerException('None clause takes in no parameters', 3);
 		}
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem('1=0');
+		public function Sql(QQueryBuilder $objBuilder) {
+			return'1=0';
 		}
 	}
 	abstract class QQConditionLogical extends QQCondition {
@@ -891,24 +899,27 @@
 				throw $objExc;
 			}
 		}
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
+			$strSql= "";
 			$intLength = count($this->objConditionArray);
 			if ($intLength) {
-				$objBuilder->AddWhereItem('(');
+				$strSql .= '(';
 				for ($intIndex = 0; $intIndex < $intLength; $intIndex++) {
 					if (!($this->objConditionArray[$intIndex] instanceof QQCondition))
 						throw new QCallerException($this->strOperator . ' clause has elements that are not Conditions');
 					try {
-						$this->objConditionArray[$intIndex]->UpdateQueryBuilder($objBuilder);
+						$strSql .= $this->objConditionArray[$intIndex]->Sql($objBuilder);
 					} catch (QCallerException $objExc) {
 						$objExc->IncrementOffset();
 						throw $objExc;
 					}
 					if (($intIndex + 1) != $intLength)
-						$objBuilder->AddWhereItem($this->strOperator);
+						$strSql .= ' ' . $this->strOperator . ' ';
 				}
-				$objBuilder->AddWhereItem(')');
+				$strSql .= ')';
 			}
+
+			return $strSql;
 		}
 
 		public function EqualTables($strTableName) {
@@ -932,15 +943,14 @@
 		public function __construct(QQCondition $objCondition) {
 			$this->objCondition = $objCondition;
 		}
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem('(NOT');
+		public function Sql(QQueryBuilder $objBuilder) {
 			try {
-				$this->objCondition->UpdateQueryBuilder($objBuilder);
+				$strSql = "(NOT" . $this->objCondition->Sql($objBuilder) . ')';
 			} catch (QCallerException $objExc) {
 				$objExc->IncrementOffset();
 				throw $objExc;
 			}
-			$objBuilder->AddWhereItem(')');
+			return $strSql;
 		}
 	}
 
@@ -973,8 +983,8 @@
 				$this->mixOperand = $mixOperand;
 			}
 		}
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . $this->strOperator . QQNode::GetValue($this->mixOperand, $objBuilder));
+		public function Sql(QQueryBuilder $objBuilder) {
+			return $this->objQueryNode->GetColumnAlias($objBuilder) . $this->strOperator . QQNode::GetValue($this->mixOperand, $objBuilder);
 		}
 
 		/**
@@ -1002,8 +1012,8 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' IS NULL');
+		public function Sql(QQueryBuilder $objBuilder) {
+			return $this->objQueryNode->GetColumnAlias($objBuilder) . ' IS NULL';
 		}
 	}
 
@@ -1015,8 +1025,8 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' IS NOT NULL');
+		public function Sql(QQueryBuilder $objBuilder) {
+			return $this->objQueryNode->GetColumnAlias($objBuilder) . ' IS NOT NULL';
 		}
 	}
 
@@ -1049,23 +1059,23 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
 			$mixOperand = $this->mixOperand;
 			if ($mixOperand instanceof QQNamedValue) {
 				/** @var QQNamedValue $mixOperand */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' IN (' . $mixOperand->Parameter() . ')');
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' IN (' . $mixOperand->Parameter() . ')';
 			} else if ($mixOperand instanceof QQSubQueryNode) {
 				/** @var QQSubQueryNode $mixOperand */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' IN ' . $mixOperand->GetColumnAlias($objBuilder));
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' IN ' . $mixOperand->GetColumnAlias($objBuilder);
 			} else {
 				$strParameters = array();
 				foreach ($mixOperand as $mixParameter) {
 					array_push($strParameters, $objBuilder->Database->SqlVariable($mixParameter));
 				}
 				if (count($strParameters))
-					$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' IN (' . implode(',', $strParameters) . ')');
+					return $this->objQueryNode->GetColumnAlias($objBuilder) . ' IN (' . implode(',', $strParameters) . ')';
 				else
-					$objBuilder->AddWhereItem('1=0');
+					return '1=0';
 			}
 		}
 	}
@@ -1098,23 +1108,23 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
 			$mixOperand = $this->mixOperand;
 			if ($mixOperand instanceof QQNamedValue) {
 				/** @var QQNamedValue $mixOperand */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT IN (' . $mixOperand->Parameter() . ')');
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT IN (' . $mixOperand->Parameter() . ')';
 			} else if ($mixOperand instanceof QQSubQueryNode) {
 				/** @var QQSubQueryNode $mixOperand */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT IN ' . $mixOperand->GetColumnAlias($objBuilder));
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT IN ' . $mixOperand->GetColumnAlias($objBuilder);
 			} else {
 				$strParameters = array();
 				foreach ($mixOperand as $mixParameter) {
 					array_push($strParameters, $objBuilder->Database->SqlVariable($mixParameter));
 				}
 				if (count($strParameters))
-					$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT IN (' . implode(',', $strParameters) . ')');
+					return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT IN (' . implode(',', $strParameters) . ')';
 				else
-					$objBuilder->AddWhereItem('1=1');
+					return '1=1';
 			}
 		}
 	}
@@ -1146,13 +1156,13 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
 			$mixOperand = $this->mixOperand;
 			if ($mixOperand instanceof QQNamedValue) {
 				/** @var QQNamedValue $mixOperand */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' LIKE ' . $mixOperand->Parameter());
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' LIKE ' . $mixOperand->Parameter();
 			} else {
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' LIKE ' . $objBuilder->Database->SqlVariable($mixOperand));
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' LIKE ' . $objBuilder->Database->SqlVariable($mixOperand);
 			}
 		}
 	}
@@ -1183,17 +1193,25 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
 			$mixOperand = $this->mixOperand;
 			if ($mixOperand instanceof QQNamedValue) {
 				/** @var QQNamedValue $mixOperand */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT LIKE ' . $mixOperand->Parameter());
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT LIKE ' . $mixOperand->Parameter();
 			} else {
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT LIKE ' . $objBuilder->Database->SqlVariable($mixOperand));
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT LIKE ' . $objBuilder->Database->SqlVariable($mixOperand);
 			}
 		}
 	}
 
+	/**
+	 * Class QQConditionBetween
+	 *
+	 * According to W3 Schools, BETWEEN can be inclusive or exclusive depending on the database you are using. So, this
+	 * is now deprecated, since its behavior is database dependent. Use the GreaterThan, GreaterThanOrEqual, LessThan, and
+	 * LessThanOrEqual comparisons combined with an and to get exactly what you want.
+	 * @deprecated
+	 */
 	class QQConditionBetween extends QQConditionComparison {
 		/** @var  mixed */
 		protected $mixOperandTwo;
@@ -1220,19 +1238,23 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
 			$mixOperand = $this->mixOperand;
 			$mixOperandTwo = $this->mixOperandTwo;
 			if ($mixOperand instanceof QQNamedValue) {
 				/** @var QQNamedValue $mixOperand */
 				/** @var QQNamedValue $mixOperandTwo */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' BETWEEN ' . $mixOperand->Parameter() . ' AND ' . $mixOperandTwo->Parameter());
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' BETWEEN ' . $mixOperand->Parameter() . ' AND ' . $mixOperandTwo->Parameter();
 			} else {
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' BETWEEN ' . $objBuilder->Database->SqlVariable($mixOperand) . ' AND ' . $objBuilder->Database->SqlVariable($mixOperandTwo));
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' BETWEEN ' . $objBuilder->Database->SqlVariable($mixOperand) . ' AND ' . $objBuilder->Database->SqlVariable($mixOperandTwo);
 			}
 		}
 	}
 
+	/**
+	 * Class QQConditionNotBetween
+	 * @deprecated See above
+	 */
 	class QQConditionNotBetween extends QQConditionComparison {
 		/** @var mixed  */
 		protected $mixOperandTwo;
@@ -1265,15 +1287,15 @@
 		/**
 		 * @param QQueryBuilder $objBuilder
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
+		public function Sql(QQueryBuilder $objBuilder) {
 			$mixOperand = $this->mixOperand;
 			$mixOperandTwo = $this->mixOperandTwo;
 			if ($mixOperand instanceof QQNamedValue) {
 				/** @var QQNamedValue $mixOperand */
 				/** @var QQNamedValue $mixOperandTwo */
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT BETWEEN ' . $mixOperand->Parameter() . ' AND ' . $mixOperandTwo->Parameter());
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT BETWEEN ' . $mixOperand->Parameter() . ' AND ' . $mixOperandTwo->Parameter();
 			} else {
-				$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT BETWEEN ' . $objBuilder->Database->SqlVariable($mixOperand) . ' AND ' . $objBuilder->Database->SqlVariable($mixOperandTwo));
+				return $this->objQueryNode->GetColumnAlias($objBuilder) . ' NOT BETWEEN ' . $objBuilder->Database->SqlVariable($mixOperand) . ' AND ' . $objBuilder->Database->SqlVariable($mixOperandTwo);
 			}
 		}
 	}
@@ -1286,8 +1308,8 @@
 		 * @throws Exception
 		 * @throws QCallerException
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' ' . QQNode::GetValue($this->mixOperand, $objBuilder, true));
+		public function Sql(QQueryBuilder $objBuilder) {
+			return $this->objQueryNode->GetColumnAlias($objBuilder) . ' ' . QQNode::GetValue($this->mixOperand, $objBuilder, true);
 		}
 	}
 	class QQConditionNotEqual extends QQConditionComparison {
@@ -1298,8 +1320,8 @@
 		 * @throws Exception
 		 * @throws QCallerException
 		 */
-		public function UpdateQueryBuilder(QQueryBuilder $objBuilder) {
-			$objBuilder->AddWhereItem($this->objQueryNode->GetColumnAlias($objBuilder) . ' ' . QQNode::GetValue($this->mixOperand, $objBuilder, false));
+		public function Sql(QQueryBuilder $objBuilder) {
+			return $this->objQueryNode->GetColumnAlias($objBuilder) . ' ' . QQNode::GetValue($this->mixOperand, $objBuilder, false);
 		}
 	}
 	class QQConditionGreaterThan extends QQConditionComparison {
