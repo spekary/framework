@@ -196,16 +196,16 @@ qcubed = {
      * @param {string} strEvent The Event
      * @param {mixed} mixParameter An array of parameters or a string value.
      * @param {string} strWaitIconControlId Not used, probably legacy code.
-     * @return {string} Post Data
+     * @return {FormData} Post Data
      */
     getPostData: function(strForm, strControl, strEvent, mixParameter, strWaitIconControlId) {
         var objFormElements = $j('#' + strForm).find('input,select,textarea'),
-            strPostData = '',
             formParamSelector = "#Qform__FormParameter",
-            nullArrays = {};
+            nullArrays = {},
+            fd = new FormData();
 
         if (mixParameter && (typeof mixParameter !== "string")) {
-            strPostData = $j.param({Qform__FormParameter: mixParameter});
+            fd.append('Qform__FormParameter', $j.param(mixParameter));
             objFormElements = objFormElements.not(formParamSelector);
         } else {
             $j(formParamSelector).val(mixParameter);
@@ -215,7 +215,7 @@ qcubed = {
         $j('#Qform__FormEvent').val(strEvent);
         $j('#Qform__FormCallType').val("Ajax");
         $j('#Qform__FormUpdates').val(this.formUpdates());
-        //$j('#Qform__FormCheckableControls').val(this.formCheckableControls(strForm, "Ajax"));
+        // not used in ajax calls any more. $j('#Qform__FormCheckableControls').val(this.formCheckableControls(strForm, "Ajax"));
 
         objFormElements.each(function() {
             var $element = $j(this),
@@ -225,10 +225,9 @@ qcubed = {
                 objChangeIndex = qc._formObjChangeIndex($element),
                 blnQform,
                 index = -1,
-                offset,
-                strPostValue = $element.val();
+                offset;
 
-            blnQform = (strControlId && (strControlId.substr(0, 7) == 'Qform__'));
+            blnQform = (strControlId && (strControlId.substr(0, 7) === 'Qform__'));
 
             if (strControlId &&
                 (strType === 'checkbox' || strType === 'radio') &&
@@ -247,7 +246,7 @@ qcubed = {
                     case "checkbox":
                         if (index >= 0) {   // this is a group of checkboxes
                             if ($element.is(":checked")) {
-                                strPostData += "&" + strControlName + "=" + $element.val();
+                                fd.append(strControlName, $element.val());
                                 nullArrays[strControlId] = 0;
                             }
                             else {
@@ -257,18 +256,18 @@ qcubed = {
                             }
                         } else {
                             // TODO: use value instead of is checked
-                            strPostData += "&" + strControlName + "=" + $element.is(":checked");
+                            fd.append(strControlName, '' + $element.is(":checked"));
                         }
                         break;
 
                     case "radio":
                         if (index >= 0) {
                             if ($element.is(":checked")) {
-                                strPostData += "&" + strControlName + "=" + index;
+                                fd.append(strControlName, index);
                             }
                         } else {
                             // control name MIGHT be a group name, which we don't want here, so we use control id instead
-                            strPostData += "&" + strControlId + "=" + $element.is(":checked");
+                            fd.append(strControlId, '' + $element.is(":checked"));
                         }
                         break;
 
@@ -276,28 +275,37 @@ qcubed = {
                         var items = $element.find(':selected');
                         if (items.length) {
                             items.each(function() {
-                                strPostData += "&" + strControlName + "=" + $j(this).val();
+                                fd.append(strControlName, $j(this).val());
                             });
                         }
                         else {
-                            strPostData += "&" + strControlName;    // mark it as set to nothing
+                            fd.append(strControlName, ''); // mark it as set to nothing
                         }
                         break;
 
                     default:
-                        if (strControlName) {   // this is what gets posted on a server post
-                            strPostData += "&" + strControlName + "=";
-                        } else {
-                            strPostData += "&" + strControlId + "=";
-                        }
-
                         // For Internationalization -- we must escape the element's value properly
-                        if (strPostValue) {
+                        var strPostValue = $element.val(),
+                            files = $element.files;
+                        var fileName = null;
+
+                        if (files) {
+                            strPostValue = files;
+                            fileName = files[0].name;
+                        }
+                        else if (strPostValue) {
                             strPostValue = strPostValue.replace(/\%/g, "%25");
                             strPostValue = strPostValue.replace(/&/g, encodeURIComponent('&'));
                             strPostValue = strPostValue.replace(/\+/g, "%2B");
+                        } else {
+                            strPostValue = '';
                         }
-                        strPostData += strPostValue;
+                        if (strControlName) {   // this is what gets posted on a server post
+                            fd.append(strControlName, strPostValue, fileName);
+                        } else {
+                            fd.append(strControlId, strPostValue, fileName);
+                        }
+
                         break;
                 }
             }
@@ -305,13 +313,15 @@ qcubed = {
 
         $j.each(nullArrays, function(key, val) {
             if (val) {
-                strPostData += "&" + key + '=';   // add a null value for the array
+                //strPostData += "&" + key + '=';   // add a null value for the array
+                fd.append(key, null); // add a null value for the array
+
             }
         });
         qcubed.ajaxError = false;
         qcubed.formObjsModified = {};
 
-        return strPostData;
+        return fd;
     },
 
     /**
@@ -346,6 +356,8 @@ qcubed = {
             url: strFormAction,
             type: "POST",
             qFormParams: qFormParams,
+            processData: false,  // tell jQuery not to process the data
+            contentType: false,   // tell jQuery not to set contentType
             fnInit: function(o) {
                 // Get the data at the last possible instant in case the formstate changes between ajax calls
                 o.data = qcubed.getPostData(

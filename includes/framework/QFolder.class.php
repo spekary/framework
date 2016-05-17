@@ -133,9 +133,9 @@
 		 * @param    boolean $blnSkipFolders     If this is set to true, only the FILES will be returned - not the folders.
 		 * @param    string  $strFilenamePattern : optional string; regular expression that the files must match in order to be returned. If it's not set, all files in that folder will be returned.
 		 *
-		 * @return array
+		 * @return string[]
 		 */
-		public static function listFilesInFolder($strPath, $blnSkipFolders = true, $strFilenamePattern = null) {
+		public static function ListFilesInFolder($strPath, $blnSkipFolders = true, $strFilenamePattern = null) {
 			// strip off the trailing slash if it's there
 			if ($strPath[strlen($strPath) - 1] == "/") {
 				$strPath = substr($strPath, 0, -1);
@@ -149,7 +149,7 @@
 			foreach ($originalSet as $item) {
 				$childPath = $strPath . "/" . $item;
 				if (is_dir($childPath)) {
-					$childItems = self::listFilesInFolder($childPath);
+					$childItems = self::ListFilesInFolder($childPath);
 					foreach ($childItems as $child) {
 						$result[] = $item . "/" . $child;
 					}

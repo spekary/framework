@@ -26,6 +26,8 @@
 		<li><a href="<?php _p(__VIRTUAL_DIRECTORY__ . __DEVTOOLS_ASSETS__) ?>/update_checker.php">Update Checker</a> - check for updates for QCubed core and plugins.</li>
 		<li><a href="<?php _p(__VIRTUAL_DIRECTORY__ . __PHP_ASSETS__) ?>/qcubed_unit_tests.php">QCubed Unit Tests</a> - set of tests that QCubed developers use to verify the integrity of the framework.
 			You must install the test SQL database and codegen_options.json file to run the tests. These can be found in the <?php _p(__VIRTUAL_DIRECTORY__ . __PHP_ASSETS__ . '/examples')?> directory.</li>
+		<li><a href="<?php _p(__VIRTUAL_DIRECTORY__ . __PHP_ASSETS__) ?>/tests/tests.php">Interactive Tests</a> - various tests that QCubed developers use to test UI, speed, and other aspects of the framework.
+			These can be found in the <?php _p(__VIRTUAL_DIRECTORY__ . __PHP_ASSETS__ . '/tests')?> directory.</li>
 	</ul>
 <?php if (!QApplication::IsRemoteAdminSession()) { ?>
 	<pre><code><?php QApplication::VarDump(); ?></code></pre>
