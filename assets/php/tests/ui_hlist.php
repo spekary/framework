@@ -34,6 +34,7 @@
 		}
 
 		protected function submit_click($strFormId, $strControlId, $strParameter) {
+			$this->list1->Refresh();
 		}
 
 		public function DataBind() {
