@@ -21,6 +21,7 @@
 	</p>
 		<?php
 		$this->RenderBegin();
+		$this->pnlUiTests->Render();
 		$this->btnRunTests->Render();
 		$this->lblRunning->Render();
 		$this->RenderEnd();

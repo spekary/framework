@@ -135,14 +135,16 @@ function paintMethodStart($test_name) {
 */
 
 class QTestForm extends QForm {
-	public $ctlTest;
+	public $ctlTest;	// For a special timer test
+	public $pnlUiTests;	// A panel for dynamically loaded ui tests
 	public $btnRunTests;
 	public $lblRunning;
-	public $pnlOutput;
+	//public $pnlOutput;
 
 	protected function Form_Create() {
 		$this->ctlTest = new QTestControl($this);
-		$this->pnlOutput = new QPanel($this, 'outputPanel');
+		$this->pnlUiTests = new QPanel($this, 'uiTestPanel');
+		//$this->pnlOutput = new QPanel($this, 'outputPanel');
 		$this->btnRunTests = new QButton($this);
 		$this->btnRunTests->Text = "Run Tests";
 		$this->btnRunTests->AddAction(new QClickEvent(), new QAjaxAction('startTesting'));
